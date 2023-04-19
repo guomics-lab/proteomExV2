@@ -7,11 +7,11 @@ condFullNames<-unique(sapply(sapply(list.files("1_InGelvsInTip/"
 
 peptideMats<-list()
 for(i in 1:length(peptideFiles)){
-  peptideMats[[i]]<-read.delim(peptideFiles[i],stringsAsFactors = F,header = T,sep='/t',row.names = 1)
+  peptideMats[[i]]<-read.delim(peptideFiles[i],stringsAsFactors = F,header = T,sep='\t',row.names = 1)
 }
 proteinMats<-list()
 for(i in 1:length(proteinFiles)){
-  proteinMats[[i]]<-read.delim(proteinFiles[i],stringsAsFactors = F,header = T,sep='/t',row.names = 1)
+  proteinMats[[i]]<-read.delim(proteinFiles[i],stringsAsFactors = F,header = T,sep='\t',row.names = 1)
 }
 names(peptideMats)<-names(proteinMats)<-condFullNames
 
@@ -26,20 +26,26 @@ for(i in 1:length(peptideMats)){
 pepLen_InGel<-sapply(unique(unlist(pepList[1:6])),PepLen)
 pepLen_InTip<-sapply(unique(unlist(pepList[7:12])),PepLen)
 
-barplot(table(pepLen_InTip))
-barplot(table(pepLen_InGel),add=T)
-hcl.colors(2, palette = "Set 3", alpha = 0.9)
-col2<-hcl.colors(2, palette = "Set 3", alpha = 0.95)
+col2<-c("#FF9A00","#629AED")
 names(col2)<-c("InTip","InGel")
-# hist(pepLen_InTip,col=col2[2])
-# hist(pepLen_InGel,add=T,col=col2[1])
-pdf("1_InGelVsInTip_PepLen.pdf",height = 2.7,width=4.1)
-plot(as.numeric(names(table(pepLen_InTip)))-0.2,table(pepLen_InTip),col=col2["InTip"],type='h',lwd=1.7,xlab="Peptide lengths",ylab="#",axes=F
-     ,ylim=c(0,4000))
-lines(as.numeric(names(table(pepLen_InGel)))+0.2,table(pepLen_InGel),col=col2["InGel"],type='h',lwd=1.7)
-axis(side=1,at=seq(7,50,3),labels = seq(7,50,3))
+pdf("1_InGelVsInTip_PepLen_hist.pdf",height = 4,width=17)
+PepLenFull_InTip<-rep(0,44)
+PepLenFull_InGel<-rep(0,44)
+names(PepLenFull_InTip)<-names(PepLenFull_InGel)<-seq(7,50)
+PepLenFull_InTip[names(table(pepLen_InTip))]<-table(pepLen_InTip)
+PepLenFull_InGel[names(table(pepLen_InGel))]<-table(pepLen_InGel)
+
+barplot(PepLenFull_InTip,col=col2["InTip"],space=0,border=NA,axes=F,ylim = c(0,4000))
+barplot(PepLenFull_InGel,add=T,col=col2["InGel"],space=0,border =NA,axes=F)
+
+# hist(pepLen_InTip,col=col2["InTip"],border=NA,breaks = 100,space=0)
+# hist(pepLen_InGel,add=T,col=col2["InGel"],border=NA)
+# plot(as.numeric(names(table(pepLen_InTip))),table(pepLen_InTip),col=col2["InTip"],type='l',lwd=2.7,xlab="Peptide lengths",ylab="#",axes=F
+     # ,ylim=c(0,4000))
+# lines(as.numeric(names(table(pepLen_InGel))),table(pepLen_InGel),col=col2["InGel"],type='l',lwd=2.7)
+# axis(side=1,at=seq(7-6,50-6,3),labels = seq(7,50,3))
 axis(side=2,at=seq(0,4000,1000),labels = seq(0,4000,1000),las=2)
-legend("topright",legend=c("InTip","InGel"),lwd=1.7,col=col2)
+legend("topright",legend=c("InTip","InGel"),fill=col2)
 dev.off()
 
 df_InGelInTip<-as.data.frame(matrix(NA,nrow=length(condFullNames),ncol=3))
@@ -58,18 +64,50 @@ misClv<-function(PepSeq){
   }
 }
 
-for(i in 1:length(pepList)){
-  df_InGelInTip$MissClv[i]<-mean(sapply(pepList[[i]], misClv))
+pValueCal<-function(vectorIn,factorIn){
+  levelNames<-levels(factorIn)
+  comb_level = combn(levelNames,2)
+  combNames<-paste(t(comb_level)[,1],t(comb_level)[,2],sep="-")
+  pvalues<-c()
+  for(j in 1:ncol(comb_level)){
+    vector1<-vectorIn[factorIn==comb_level[1,j]]
+    vector2<-vectorIn[factorIn==comb_level[2,j]]
+    pvalues[j]<-t.test(vector1,vector2)$p.value
+  }
+  names(pvalues)<-combNames
+  return(pvalues)
 }
+
+pValueCalSort<-function(vectorIn,factorIn){
+  levelNames<-levels(factorIn)
+  combNames<-paste(levelNames[1:(length(levelNames)-1)],levelNames[2:length(levelNames)])
+  pvalues<-c()
+  for(j in 1:(length(levelNames)-1)){
+    vector1<-vectorIn[factorIn==levelNames[j]]
+    vector2<-vectorIn[factorIn==levelNames[j+1]]
+    pvalues[j]<-t.test(vector1,vector2)$p.value
+  }
+  names(pvalues)<-combNames
+  return(pvalues)
+}
+
+pvalueStars<-function(pvalues){
+  stars<-rep(NA,length(pvalues))
+  stars[pvalues<=0.05&pvalues>0.01]<-"*"
+  stars[pvalues<=0.01&pvalues>0.001]<-"**"
+  stars[pvalues<=0.001&pvalues>0.0001]<-"***"
+  stars[pvalues<=0.0001]<-"****"
+  return(stars)
+}
+
 
 Mean_NumPeptide<-aggregate(df_InGelInTip$NumPeptide, list(df_InGelInTip$condName), FUN=mean)[,2]
 Mean_NumProtein<-aggregate(df_InGelInTip$NumProtein, list(df_InGelInTip$condName), FUN=mean)[,2]
-Mean_MissClv<-aggregate(df_InGelInTip$MissClv, list(df_InGelInTip$condName), FUN=mean)[,2]
 
-pdf("1_InTipVsInGel_IdMisClv.pdf",width=6.20,height=2.7)
-par(mfrow=c(1,3))
+{pdf("1_InTipVsInGel_Id_colPvalue.pdf",width=5.2,height=3)
+par(mfrow=c(1,2))
 stripchart(df_InGelInTip$NumPeptide~df_InGelInTip$condName,col=col2,ylab="NumPeptide",vertical=T,method='jitter',pch=19,xlim=c(0.5,2.5)
-           ,las=2,ylim=c(5000,25000),cex=0)
+           ,las=2,ylim=c(0,30000),cex=0)
 segments(x0=seq(1,2)-0.1,x1=seq(1,2)+0.1,y0=Mean_NumPeptide,y1=Mean_NumPeptide)
 sem1<-aggregate(df_InGelInTip$NumPeptide, list(df_InGelInTip$condName), FUN=sd)[,2]
 segments(x0=seq(1,2),x1=seq(1,2),y0=Mean_NumPeptide-sem1,
@@ -78,8 +116,11 @@ segments(x0=seq(1,2)-0.05,x1=seq(1,2)+0.05,y0=Mean_NumPeptide-sem1,
          y1=Mean_NumPeptide-sem1)
 segments(x0=seq(1,2)-0.05,x1=seq(1,2)+0.05,y0=Mean_NumPeptide+sem1,
          y1=Mean_NumPeptide+sem1)
-stripchart(df_InGelInTip$NumPeptide~df_InGelInTip$condName,col=col2[levels(df_InGelInTip$condName)],ylab="NumPeptide",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(5000,25000),add=T,cex=0.7)
+stripchart(df_InGelInTip$NumPeptide~df_InGelInTip$condName,col=col2[levels(df_InGelInTip$condName)],ylab="NumPeptide",vertical=T,method='jitter',pch=19,las=2,add=T,cex=0.7)
+pvalues<-pValueCal(df_InGelInTip$NumPeptide,df_InGelInTip$condName)
+stars<-pvalueStars(pvalues)
+arrows(x0=1,x1=2,y0=1.5*(Mean_NumPeptide[1]+Mean_NumPeptide[2])/2,y1=1.5*(Mean_NumPeptide[1]+Mean_NumPeptide[2])/2,code=3,angle=90,length = 0)
+text(x=1.5,y=1.55*(Mean_NumPeptide[1]+Mean_NumPeptide[2])/2,labels=stars[!is.na(stars)])
 
 stripchart(df_InGelInTip$NumProtein~df_InGelInTip$condName,col=col2,ylab="NumProtein",vertical=T,method='jitter',pch=19
            ,las=2,ylim=c(0,3500),cex=0,xlim=c(0.5,2.5))
@@ -91,22 +132,12 @@ segments(x0=seq(1,2)-0.05,x1=seq(1,2)+0.05,y0=Mean_NumProtein-sem1,
          y1=Mean_NumProtein-sem1)
 segments(x0=seq(1,2)-0.05,x1=seq(1,2)+0.05,y0=Mean_NumProtein+sem1,
          y1=Mean_NumProtein+sem1)
-stripchart(df_InGelInTip$NumProtein~df_InGelInTip$condName,col=col2[levels(df_InGelInTip$condName)],ylab="NumProtein",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(5000,25000),add=T,cex=0.7)
-
-stripchart(df_InGelInTip$MissClv~df_InGelInTip$condName,col=col2,ylab="MissClv",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(0.2,0.5),cex=0,xlim=c(0.5,2.5))
-segments(x0=seq(1,2)-0.1,x1=seq(1,2)+0.1,y0=Mean_MissClv,y1=Mean_MissClv)
-sem1<-aggregate(df_InGelInTip$MissClv, list(df_InGelInTip$condName), FUN=sd)[,2]
-segments(x0=seq(1,2),x1=seq(1,2),y0=Mean_MissClv-sem1,
-         y1=Mean_MissClv+sem1)
-segments(x0=seq(1,2)-0.05,x1=seq(1,2)+0.05,y0=Mean_MissClv-sem1,
-         y1=Mean_MissClv-sem1)
-segments(x0=seq(1,2)-0.05,x1=seq(1,2)+0.05,y0=Mean_MissClv+sem1,
-         y1=Mean_MissClv+sem1)
-stripchart(df_InGelInTip$MissClv~df_InGelInTip$condName,col=col2[levels(df_InGelInTip$condName)],ylab="MissClv",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(5000,25000),add=T,cex=0.7)
-dev.off()
+stripchart(df_InGelInTip$NumProtein~df_InGelInTip$condName,col=col2[levels(df_InGelInTip$condName)],ylab="NumProtein",vertical=T,method='jitter',pch=19,las=2,add=T,cex=0.7)
+pvalues<-pValueCal(df_InGelInTip$NumProtein,df_InGelInTip$condName)
+stars<-pvalueStars(pvalues)
+arrows(x0=1,x1=2,y0=1.25*(Mean_NumProtein[1]+Mean_NumProtein[2])/2,y1=1.25*(Mean_NumProtein[1]+Mean_NumProtein[2])/2,code=3,angle=90,length = 0)
+text(x=1.5,y=1.27*(Mean_NumProtein[1]+Mean_NumProtein[2])/2,labels=stars[!is.na(stars)])
+dev.off()}
 
 proList<-list()
 for(i in 1:length(proteinMats)){
@@ -121,16 +152,22 @@ InterPep<-intersect(Pep_InGel,Pep_InTip)
 InterPro<-intersect(Pro_InGel,Pro_InTip)
 Pep_bar<-c(length(Pep_InGel)-length(InterPep),length(InterPep),length(Pep_InTip)-length(InterPep))
 Pro_bar<-c(length(Pro_InGel)-length(InterPro),length(InterPro),length(Pro_InTip)-length(InterPro))
-pdf("1_InGelInTip_Venn.pdf",width = 4,height=4)
+pdf("1_InGelInTip_VennCircleCol.pdf",width = 4,height=4)
 par(mfrow=c(3,1),mar=c(1,1,4,1))
-bx<-barplot(as.matrix(Pep_bar),beside = F,horiz = T,col=c(col2[2],"skyblue",col2[1]),main = "PepNum",axes=F)
-text(c(Pep_bar[1]/2,Pep_bar[1]+Pep_bar[2]/2,Pep_bar[1]+Pep_bar[2]+Pep_bar[3]/2),bx,(Pep_bar))
-
-bx<-barplot(as.matrix(Pro_bar),beside = F,horiz = T,col=c(col2[2],"skyblue",col2[1])
-        ,main = "ProNum",axes=F)
-text(c(Pro_bar[1]/2,Pro_bar[1]+Pro_bar[2]/2,Pro_bar[1]+Pro_bar[2]+Pro_bar[3]/2),bx,(Pro_bar))
-plot.new()
-legend("center",fill=c(col2[2],"skyblue",col2[1]),legend = c("InGel Only","Intersective","InTip Only"))
+grid::grid.newpage()
+VennDiagram::draw.pairwise.venn(area1 = sum(Pep_bar[1:2]),area2 = sum(Pep_bar[2:3]),cross.area = Pep_bar[2]
+                                ,col =c(col2[2],col2[1]))
+grid::grid.newpage()
+VennDiagram::draw.pairwise.venn(area1 = sum(Pro_bar[1:2]),area2 = sum(Pro_bar[2:3]),cross.area = Pro_bar[2]
+                                ,col =c(col2[2],col2[1]))
+# bx<-barplot(as.matrix(Pep_bar),beside = F,horiz = T,col=c(col2[2],"#CBDB2A",col2[1]),main = "PepNum",axes=F)
+# text(c(Pep_bar[1]/2,Pep_bar[1]+Pep_bar[2]/2,Pep_bar[1]+Pep_bar[2]+Pep_bar[3]/2),bx,(Pep_bar))
+# 
+# bx<-barplot(as.matrix(Pro_bar),beside = F,horiz = T,col=c(col2[2],"#CBDB2A",col2[1])
+#         ,main = "ProNum",axes=F)
+# text(c(Pro_bar[1]/2,Pro_bar[1]+Pro_bar[2]/2,Pro_bar[1]+Pro_bar[2]+Pro_bar[3]/2),bx,(Pro_bar))
+# plot.new()
+# legend("center",fill=c(col2[2],"#CBDB2A",col2[1]),legend = c("InGel Only","Intersective","InTip Only"))
 dev.off()
 
 
@@ -161,7 +198,7 @@ Pro_InTip_CV<-apply(Pro_InTip_Mat,1,sd,na.rm=T)/apply(Pro_InTip_Mat,1,mean,na.rm
 
 CVList<-list(Pep_InGel_CV,Pep_InTip_CV,Pro_InGel_CV,Pro_InTip_CV)
 names(CVList)<-c("Pep_InGel","Pep_InTip","Pro_InGel","Pro_InTip")
-pdf("1_InGelInTip_CV.pdf",width = 4,height = 4)
+pdf("1_InGelInTip_CV_col.pdf",width = 4,height = 4)
 par(mar=c(6,4,1,1))
 vioplot::vioplot(CVList,col=0,ylim=c(0,1),ylab="CoV",las=2)
 boxplot(CVList,add=T,outline = F,col=col2[c("InGel","InTip")],las=2)
@@ -178,23 +215,13 @@ gravyCal<-function(PepSeq){
 Gravy_InGel<-sapply(row.names(Pep_InGel_Mat),gravyCal)
 Gravy_InTip<-sapply(row.names(Pep_InTip_Mat),gravyCal)
 
-pdf("1_InGelInTip_Gravy.pdf",width=6,height = 4)
+pdf("1_InGelInTip_Gravy_col.pdf",width=6,height = 4)
 plot(density(Gravy_InGel,bw=1.95),col=col2["InGel"],xlim=c(-40,30),xlab="GRAVY value",main="")
 lines(density(Gravy_InTip,bw=1.95),col=col2["InTip"])
 abline(v=median(Gravy_InGel),col=col2["InGel"])
 abline(v=median(Gravy_InTip),col=col2["InTip"])
 legend("topright",legend=c("InTip","InGel"),lwd=1.7,col=col2)
 dev.off()
-
-# pdf("1_InGelVsInTip_PepLen.pdf",height = 2.7,width=4.1)
-plot(as.numeric(names(table(pepLen_InTip)))-0.2,table(pepLen_InTip),col=col2["InTip"],type='h',lwd=1.7,xlab="Peptide lengths",ylab="#",axes=F
-     ,ylim=c(0,4000))
-lines(as.numeric(names(table(pepLen_InGel)))+0.2,table(pepLen_InGel),col=col2["InGel"],type='h',lwd=1.7)
-axis(side=1,at=seq(7,50,3),labels = seq(7,50,3))
-axis(side=2,at=seq(0,4000,1000),labels = seq(0,4000,1000),las=2)
-legend("topright",legend=c("InTip","InGel"),lwd=1.7,col=col2)
-# dev.off()
-
 
 #cross correlation
 pepAll<-unique(unlist(pepList))
@@ -218,26 +245,26 @@ PepCorMat_InGel<-PepCorMat[1:6,1:6]
 ProCorMat_InGel<-ProCorMat[1:6,1:6]
 PepCorMat_InTip<-PepCorMat[7:12,7:12]
 ProCorMat_InTip<-ProCorMat[7:12,7:12]
-pdf("Corr_Plot.pdf",width=6,height = 6)
+pdf("Corr_Plot_col.pdf",width=6,height = 6)
 toPlotList<-list(unique(as.vector(PepCorMat_InGel))[-1],
                  unique(as.vector(PepCorMat_InTip))[-1],
                  unique(as.vector(ProCorMat_InGel))[-1],
                  unique(as.vector(ProCorMat_InTip))[-1])
 names(toPlotList)<-c("PepCor_InGel","PepCor_InTip",
                      "ProCor_InGel","ProCor_InTip")
-boxplot(toPlotList,las=2)
+boxplot(toPlotList,las=2,col=col2[c("InGel","InTip")])
 dev.off()
 
-pdf("1_InGelInTip_Corr.pdf",width = 6,height = 6)
-par(mar=c(6,6,6,6))
-print(corrplot::corrplot(cor(Pep_Mat_NoNA),method = c("square"),tl.col=1,type="upper"
-         ,main="Peptides",addCoef.col="grey"))
-print(corrplot::corrplot(cor(Pro_Mat_NoNA),method = c("square"),tl.col=1,type="lower"
-         ,main="Proteins",add=T,addCoef.col="grey"))
-dev.off()
+# pdf("1_InGelInTip_Corr.pdf",width = 6,height = 6)
+# par(mar=c(6,6,6,6))
+# print(corrplot::corrplot(cor(Pep_Mat_NoNA),method = c("square"),tl.col=1,type="upper"
+#          ,main="Peptides",addCoef.col="grey"))
+# print(corrplot::corrplot(cor(Pro_Mat_NoNA),method = c("square"),tl.col=1,type="lower"
+#          ,main="Proteins",add=T,addCoef.col="grey"))
+# dev.off()
 
 #mean abundance rank
-pdf("1_InGelInTip_AbundRank.pdf",width = 4,height = 4)
+pdf("1_InGelInTip_AbundRank_col.pdf",width = 4,height = 4)
 par(mar=c(4,4,1,1))
 plot(sort(log10(apply(Pro_InTip_Mat,1,mean,na.rm=T)),decreasing = T),type='l',col=col2["InTip"],lwd=2
      ,ylab="log10 mean protein intensities",xlab="Abundance rank",ylim=c(2,8))
@@ -253,11 +280,11 @@ write.csv(row.names(Pro_InTip_Mat),"Pro_InTip.csv",row.names = F)
 preMat_filename = '2_Detection_range_report.pr_matrix.tsv'
 proMat_filename = '2_Detection_range_report.pg_matrix.tsv'
 
-preMatIn<-read.table(preMat_filename,stringsAsFactors = F,sep='/t',header = T)
-proMatIn<-read.table(proMat_filename,stringsAsFactors = F,sep='/t',header = T)
+preMatIn<-read.table(preMat_filename,stringsAsFactors = F,sep='\t',header = T)
+proMatIn<-read.table(proMat_filename,stringsAsFactors = F,sep='\t',header = T)
 
 removeNames<-function(colnamein){
-  return(paste(unlist(strsplit(unlist(strsplit(colnamein,"//."))[12],"_"))[c(2:4,6)],collapse = "_"))
+  return(paste(unlist(strsplit(unlist(strsplit(colnamein,"\\."))[12],"_"))[c(2:4,6)],collapse = "_"))
 }
 pepAll<-unique(preMatIn$Stripped.Sequence)
 preCond<-sapply(colnames(preMatIn[,11:ncol(preMatIn)]),removeNames)
@@ -298,11 +325,11 @@ proteinFiles<-list.files(pattern="protein.tsv","2_Detection_range_DDA/",full.nam
 
 peptideMats<-list()
 for(i in 1:length(peptideFiles)){
-  peptideMats[[i]]<-read.delim(peptideFiles[i],stringsAsFactors = F,header = T,sep='/t',row.names = 1)
+  peptideMats[[i]]<-read.delim(peptideFiles[i],stringsAsFactors = F,header = T,sep='\t',row.names = 1)
 }
 proteinMats<-list()
 for(i in 1:length(proteinFiles)){
-  proteinMats[[i]]<-read.delim(proteinFiles[i],stringsAsFactors = F,header = T,sep='/t',row.names = 1)
+  proteinMats[[i]]<-read.delim(proteinFiles[i],stringsAsFactors = F,header = T,sep='\t',row.names = 1)
 }
 names(peptideMats)<-names(proteinMats)<-condFullNames
 
@@ -343,7 +370,7 @@ DIA_Num$Diameter<-as.numeric(gsub("um","",gsub("mm","000um",DIA_Num$Diameter)))
 # stripchart(DIA_Num$DIA_proNum~DIA_Num$Diameter,ylab="proNum",vertical=T,method='jitter',pch=18
 #            ,las=2,ylim=c(0,6000))
 {
-pdf("2_Detection_range.pdf",width=9,height = 5)
+pdf("2_Detection_range_errCol.pdf",width=9,height = 5)
 par(mfrow=c(1,2))
 x000<-c(350,500,750,1000,1500,2000,3000)
 conc<-c(0.042,0.085,0.191,0.339,0.763,1.357,3.054)
@@ -353,60 +380,63 @@ DIA_Num_InTip<-DIA_Num[DIA_Num$CondName=="InTip",]
 Mean<-aggregate(DIA_Num_InTip[,1], list(DIA_Num_InTip[,4]), FUN=mean)[,2]
 Sd<-aggregate(DIA_Num_InTip[,1], list(DIA_Num_InTip[,4]), FUN=sd)[,2]
 stripchart(DIA_Num_InTip[,1]~DIA_Num_InTip[,4],ylab="pepNum",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(0,50000),col=col2['InTip'],cex=0,at=x000,xlim=c(300,3000))
-# segments(x0=x00-0.1,x1=x00+0.1,y0=Mean,y1=Mean)
+           ,las=2,ylim=c(0,50000),col=col2['InTip'],cex=0,at=x000,xlim=c(300,3000),axes=F)
+segments(x0=x000-30,x1=x000+30,y0=Mean,y1=Mean,col=col2['InTip'])
 segments(x0=x000,x1=x000,y0=Mean-Sd,y1=Mean+Sd,col=col2['InTip'])
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean-Sd,y1=Mean-Sd)
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean+Sd,y1=Mean+Sd)
-stripchart(DIA_Num_InTip[,1]~DIA_Num_InTip[,4],ylab="pepNum",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(0,50000),col=col2['InTip'],add=T,cex=0.7,at=x000)
+segments(x0=x000-15,x1=x000+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InTip'])
+segments(x0=x000-15,x1=x000+15,y0=Mean+Sd,y1=Mean+Sd,col=col2['InTip'])
+# stripchart(DIA_Num_InTip[,1]~DIA_Num_InTip[,4],ylab="pepNum",vertical=T,method='jitter',pch=19
+#            ,las=2,ylim=c(0,50000),col=col2['InTip'],add=T,cex=0.7,at=x000)
 
 DIA_Num_InGel<-DIA_Num[DIA_Num$CondName=="InGel",]
 Mean<-aggregate(DIA_Num_InGel[,1], list(DIA_Num_InGel[,4]), FUN=mean)[,2]
 Sd<-aggregate(DIA_Num_InGel[,1], list(DIA_Num_InGel[,4]), FUN=sd)[,2]
 x00<-x000[seq(4,7)]
-# segments(x0=x00-0.1,x1=x00+0.1,y0=Mean,y1=Mean)
+segments(x0=x00-30,x1=x00+30,y0=Mean,y1=Mean,col=col2['InGel'])
 segments(x0=x00,x1=x00,y0=Mean-Sd,y1=Mean+Sd,col=col2['InGel'])
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean-Sd,y1=Mean-Sd)
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean+Sd,y1=Mean+Sd)
-stripchart(DIA_Num_InGel[,1]~DIA_Num_InGel[,4],ylab="pepNum",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(0,50000),col=col2['InGel'],add=T,cex=0.7,at=x00)
+segments(x0=x00-15,x1=x00+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InGel'])
+segments(x0=x00-15,x1=x00+15,y0=Mean+Sd,y1=Mean+Sd,col=col2['InGel'])
+# stripchart(DIA_Num_InGel[,1]~DIA_Num_InGel[,4],ylab="pepNum",vertical=T,method='jitter',pch=19
+#            ,las=2,ylim=c(0,50000),col=col2['InGel'],add=T,cex=0.7,at=x00)
 
 DDA_Num_InTip<-DDA_Num[DDA_Num$CondName=="InTip",]
 Mean<-aggregate(DDA_Num_InTip[,1], list(DDA_Num_InTip[,4]), FUN=mean)[,2]
 Sd<-aggregate(DDA_Num_InTip[,1], list(DDA_Num_InTip[,4]), FUN=sd)[,2]
 x00<-x000[seq(1,7)]
-# segments(x0=x00-0.1,x1=x00+0.1,y0=Mean,y1=Mean)
+segments(x0=x00-30,x1=x00+30,y0=Mean,y1=Mean,col=col2['InTip'])
 segments(x0=x00,x1=x00,y0=Mean-Sd,y1=Mean+Sd,col=col2['InTip'])
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean-Sd,y1=Mean-Sd)
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean+Sd,y1=Mean+Sd)
-stripchart(DDA_Num_InTip[,1]~DDA_Num_InTip[,4],ylab="pepNum",vertical=T,method='jitter',pch=17
-           ,las=2,ylim=c(0,50000),col=col2['InTip'],add=T,cex=1,at=x00)
+segments(x0=x00-15,x1=x00+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InTip'])
+segments(x0=x00-15,x1=x00+15,y0=Mean+Sd,y1=Mean+Sd,col=col2['InTip'])
+# stripchart(DDA_Num_InTip[,1]~DDA_Num_InTip[,4],ylab="pepNum",vertical=T,method='jitter',pch=17
+#            ,las=2,ylim=c(0,50000),col=col2['InTip'],add=T,cex=1,at=x00)
 
 
 DDA_Num_InGel<-DDA_Num[DDA_Num$CondName=="InGel",]
 Mean<-aggregate(DDA_Num_InGel[,1], list(DDA_Num_InGel[,4]), FUN=mean)[,2]
 Sd<-aggregate(DDA_Num_InGel[,1], list(DDA_Num_InGel[,4]), FUN=sd)[,2]
 x00<-x000[seq(4,7)]
-# segments(x0=x00-0.1,x1=x00+0.1,y0=Mean,y1=Mean)
+segments(x0=x00-30,x1=x00+30,y0=Mean,y1=Mean,col=col2['InGel'])
 segments(x0=x00,x1=x00,y0=Mean-Sd,y1=Mean+Sd,col=col2['InGel'])
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean-Sd,y1=Mean-Sd)
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean+Sd,y1=Mean+Sd)
-stripchart(DDA_Num_InGel[,1]~DDA_Num_InGel[,4],ylab="pepNum",vertical=T,method='jitter',pch=17
-           ,las=2,ylim=c(0,50000),col=col2['InGel'],add=T,cex=1,at=x00)
-axis(side=3,at=x000,labels = conc,las=2)
+segments(x0=x00-15,x1=x00+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InGel'])
+segments(x0=x00-15,x1=x00+15,y0=Mean+Sd,y1=Mean+Sd,col=col2['InGel'])
+# stripchart(DDA_Num_InGel[,1]~DDA_Num_InGel[,4],ylab="pepNum",vertical=T,method='jitter',pch=17
+#            ,las=2,ylim=c(0,50000),col=col2['InGel'],add=T,cex=1,at=x00)
+axis(side=3,at=x000,labels = x000,las=2)
+axis(side=1,at=x000,labels = conc,las=2)
+axis(side=2,at=seq(0,50000,10000),labels = seq(0,50000,10000),las=2)
+
 
 lss=loess(DDA_Num_InGel[,1]~DDA_Num_InGel[,4])
 x00<-x000[seq(4,7)]
 lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
-      ,col=col2['InGel'])
+      ,col=col2['InGel'],lty=2)
 lss=loess(DIA_Num_InGel[,1]~DIA_Num_InGel[,4])
 lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
       ,col=col2['InGel'])
 x00<-x000[seq(1,7)]
 lss=loess(DDA_Num_InTip[,1]~DDA_Num_InTip[,4])
 lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
-      ,col=col2['InTip'])
+      ,col=col2['InTip'],lty=2)
 lss=loess(DIA_Num_InTip[,1]~DIA_Num_InTip[,4])
 lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
       ,col=col2['InTip'])
@@ -416,60 +446,62 @@ DIA_Num_InTip<-DIA_Num[DIA_Num$CondName=="InTip",]
 Mean<-aggregate(DIA_Num_InTip[,2], list(DIA_Num_InTip[,4]), FUN=mean)[,2]
 Sd<-aggregate(DIA_Num_InTip[,2], list(DIA_Num_InTip[,4]), FUN=sd)[,2]
 stripchart(DIA_Num_InTip[,2]~DIA_Num_InTip[,4],ylab="proNum",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(0,5500),col=col2['InTip'],cex=0,at=x000,xlim=c(300,3000))
-# segments(x0=x00-0.1,x1=x00+0.1,y0=Mean,y1=Mean)
+           ,las=2,ylim=c(0,6000),col=col2['InTip'],cex=0,at=x000,xlim=c(300,3000),axes=F)
+segments(x0=x000-30,x1=x000+30,y0=Mean,y1=Mean,col=col2['InTip'])
 segments(x0=x000,x1=x000,y0=Mean-Sd,y1=Mean+Sd,col=col2['InTip'])
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean-Sd,y1=Mean-Sd)
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean+Sd,y1=Mean+Sd)
-stripchart(DIA_Num_InTip[,2]~DIA_Num_InTip[,4],ylab="proNum",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(3000,5500),col=col2['InTip'],add=T,cex=0.7,at=x000)
+segments(x0=x000-15,x1=x000+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InTip'])
+segments(x0=x000-15,x1=x000+15,y0=Mean+Sd,y1=Mean+Sd,col=col2['InTip'])
+# stripchart(DIA_Num_InTip[,2]~DIA_Num_InTip[,4],ylab="proNum",vertical=T,method='jitter',pch=19
+#            ,las=2,ylim=c(3000,5500),col=col2['InTip'],add=T,cex=0.7,at=x000)
 
 DIA_Num_InGel<-DIA_Num[DIA_Num$CondName=="InGel",]
 Mean<-aggregate(DIA_Num_InGel[,2], list(DIA_Num_InGel[,4]), FUN=mean)[,2]
 Sd<-aggregate(DIA_Num_InGel[,2], list(DIA_Num_InGel[,4]), FUN=sd)[,2]
 x00<-x000[seq(4,7)]
-# segments(x0=x00-0.1,x1=x00+0.1,y0=Mean,y1=Mean)
+segments(x0=x00-30,x1=x00+30,y0=Mean,y1=Mean,col=col2['InGel'])
 segments(x0=x00,x1=x00,y0=Mean-Sd,y1=Mean+Sd,col=col2['InGel'])
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean-Sd,y1=Mean-Sd)
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean+Sd,y1=Mean+Sd)
-stripchart(DIA_Num_InGel[,2]~DIA_Num_InGel[,4],ylab="proNum",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(0,50000),col=col2['InGel'],add=T,cex=0.7,at=x00)
+segments(x0=x00-15,x1=x00+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InGel'])
+segments(x0=x00-15,x1=x00+15,y0=Mean+Sd,y1=Mean+Sd,col=col2['InGel'])
+# stripchart(DIA_Num_InGel[,2]~DIA_Num_InGel[,4],ylab="proNum",vertical=T,method='jitter',pch=19
+#            ,las=2,ylim=c(0,50000),col=col2['InGel'],add=T,cex=0.7,at=x00)
 
 DDA_Num_InTip<-DDA_Num[DDA_Num$CondName=="InTip",]
 Mean<-aggregate(DDA_Num_InTip[,2], list(DDA_Num_InTip[,4]), FUN=mean)[,2]
 Sd<-aggregate(DDA_Num_InTip[,2], list(DDA_Num_InTip[,4]), FUN=sd)[,2]
 x00<-x000[seq(1,7)]
-# segments(x0=x00-0.1,x1=x00+0.1,y0=Mean,y1=Mean)
+segments(x0=x00-30,x1=x00+30,y0=Mean,y1=Mean,col=col2['InTip'])
 segments(x0=x00,x1=x00,y0=Mean-Sd,y1=Mean+Sd,col=col2['InTip'])
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean-Sd,y1=Mean-Sd)
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean+Sd,y1=Mean+Sd)
-stripchart(DDA_Num_InTip[,2]~DDA_Num_InTip[,4],ylab="proNum",vertical=T,method='jitter',pch=17
-           ,las=2,ylim=c(0,50000),col=col2['InTip'],add=T,cex=1,at=x00)
+segments(x0=x00-15,x1=x00+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InTip'])
+segments(x0=x00-15,x1=x00+15,y0=Mean+Sd,y1=Mean+Sd,col=col2['InTip'])
+# stripchart(DDA_Num_InTip[,2]~DDA_Num_InTip[,4],ylab="proNum",vertical=T,method='jitter',pch=17
+#            ,las=2,ylim=c(0,50000),col=col2['InTip'],add=T,cex=1,at=x00)
 
 
 DDA_Num_InGel<-DDA_Num[DDA_Num$CondName=="InGel",]
 Mean<-aggregate(DDA_Num_InGel[,2], list(DDA_Num_InGel[,4]), FUN=mean)[,2]
 Sd<-aggregate(DDA_Num_InGel[,2], list(DDA_Num_InGel[,4]), FUN=sd)[,2]
 x00<-x000[seq(4,7)]
-# segments(x0=x00-0.1,x1=x00+0.1,y0=Mean,y1=Mean)
+segments(x0=x00-30,x1=x00+30,y0=Mean,y1=Mean,col=col2['InGel'])
 segments(x0=x00,x1=x00,y0=Mean-Sd,y1=Mean+Sd,col=col2['InGel'])
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean-Sd,y1=Mean-Sd)
-# segments(x0=x00-0.05,x1=x00+0.05,y0=Mean+Sd,y1=Mean+Sd)
-stripchart(DDA_Num_InGel[,2]~DDA_Num_InGel[,4],ylab="proNum",vertical=T,method='jitter',pch=17
-           ,las=2,ylim=c(0,50000),col=col2['InGel'],add=T,cex=1,at=x00)
-axis(side=3,at=x000,labels = conc,las=2)
+segments(x0=x00-15,x1=x00+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InGel'])
+segments(x0=x00-15,x1=x00+15,y0=Mean+Sd,y1=Mean+Sd,col=col2['InGel'])
+# stripchart(DDA_Num_InGel[,2]~DDA_Num_InGel[,4],ylab="proNum",vertical=T,method='jitter',pch=17
+#            ,las=2,ylim=c(0,50000),col=col2['InGel'],add=T,cex=1,at=x00)
+axis(side=3,at=x000,labels = x000,las=2)
+axis(side=1,at=x000,labels = conc,las=2)
+axis(side=2,at=seq(0,6000,1000),labels = seq(0,6000,1000),las=2)
 
 lss=loess(DDA_Num_InGel[,2]~DDA_Num_InGel[,4])
 x00<-x000[seq(4,7)]
 lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
-      ,col=col2['InGel'])
+      ,col=col2['InGel'],lty=2)
 lss=loess(DIA_Num_InGel[,2]~DIA_Num_InGel[,4])
 lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
       ,col=col2['InGel'])
 x00<-x000[seq(1,7)]
 lss=loess(DDA_Num_InTip[,2]~DDA_Num_InTip[,4])
 lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
-      ,col=col2['InTip'])
+      ,col=col2['InTip'],lty=2)
 lss=loess(DIA_Num_InTip[,2]~DIA_Num_InTip[,4])
 lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
       ,col=col2['InTip'])
@@ -588,10 +620,10 @@ segments(x0=seq(1,2)-0.05,x1=seq(1,2)+0.05,y0=Mean_MissClv+sem1,
 dev.off()
 
 df_InGelInTip$MissClv<-c(20.40167364,21.58064263,21.27234855,21.45274453,34.4600401,23.64463099,17.54550094,17.10893227,17.53054833,16.88289947,16.9299836,17.46127108)
-pdf("MisClv_ML_CRC_dz.pdf",width=7/3*2,height=4)
+pdf("MisClv_ML_CRC_dz_colPvalue.pdf",width=7/3*2,height=4)
 par(mfrow=c(1,2))
 Mean_MissClv<-aggregate(df_InGelInTip$MissClv, list(df_InGelInTip$condName), FUN=mean)[,2]
-stripchart(df_InGelInTip$MissClv~df_InGelInTip$condName,col=col2,ylab="MissClv",vertical=T,method='jitter',pch=19,ylim=c(15,35)
+stripchart(df_InGelInTip$MissClv~df_InGelInTip$condName,col=col2,ylab="Missed cleavage rate(%)",vertical=T,method='jitter',pch=19,ylim=c(10,40)
            ,las=2,cex=0,xlim=c(0.5,2.5),main="ML")
 segments(x0=seq(1,2)-0.1,x1=seq(1,2)+0.1,y0=Mean_MissClv,y1=Mean_MissClv)
 sem1<-aggregate(df_InGelInTip$MissClv, list(df_InGelInTip$condName), FUN=sd)[,2]
@@ -601,11 +633,15 @@ segments(x0=seq(1,2)-0.05,x1=seq(1,2)+0.05,y0=Mean_MissClv-sem1,
          y1=Mean_MissClv-sem1)
 segments(x0=seq(1,2)-0.05,x1=seq(1,2)+0.05,y0=Mean_MissClv+sem1,
          y1=Mean_MissClv+sem1)
-stripchart(df_InGelInTip$MissClv~df_InGelInTip$condName,col=col2[levels(df_InGelInTip$condName)],ylab="Missed cleavage rate(%)",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(5000,25000),add=T,cex=0.7)
+stripchart(df_InGelInTip$MissClv~df_InGelInTip$condName,col=col2[levels(df_InGelInTip$condName)],vertical=T,method='jitter',pch=19
+           ,las=2,add=T,cex=0.7)
+pvalues<-pValueCal(df_InGelInTip$MissClv,df_InGelInTip$condName)
+stars<-pvalueStars(pvalues)
+arrows(x0=1,x1=2,y0=1.8*(Mean_MissClv[1]+Mean_MissClv[2])/2,y1=1.8*(Mean_MissClv[1]+Mean_MissClv[2])/2,code=3,angle=90,length = 0)
+text(x=1.5,y=1.81*(Mean_MissClv[1]+Mean_MissClv[2])/2,labels=stars[!is.na(stars)])
 
 misClvCRC<-c(18.90,18.79,19.04,17.57,17.06)
-stripchart(misClvCRC,col=1,ylab="Missed cleavage rate(%)",vertical=T,method='jitter',pch=19,las=2,cex=1,main="CRC",ylim=c(17,20))
+stripchart(misClvCRC,col=1,ylab="Missed cleavage rate(%)",vertical=T,method='jitter',pch=19,las=2,cex=1,main="CRC",ylim=c(10,40))
 Mean_MissClv<-mean(misClvCRC)
 sem1<-sd(misClvCRC)
 segments(x0=seq(1,2)-0.1,x1=seq(1,2)+0.1,y0=Mean_MissClv,y1=Mean_MissClv)
