@@ -28,22 +28,26 @@ pepLen_InTip<-sapply(unique(unlist(pepList[7:12])),PepLen)
 
 col2<-c("#FF9A00","#629AED")
 names(col2)<-c("InTip","InGel")
-pdf("1_InGelVsInTip_PepLen_hist.pdf",height = 4,width=17)
+pdf("1_InGelVsInTip_PepLen_line.pdf",height = 4,width=17)
 PepLenFull_InTip<-rep(0,44)
 PepLenFull_InGel<-rep(0,44)
 names(PepLenFull_InTip)<-names(PepLenFull_InGel)<-seq(7,50)
 PepLenFull_InTip[names(table(pepLen_InTip))]<-table(pepLen_InTip)
 PepLenFull_InGel[names(table(pepLen_InGel))]<-table(pepLen_InGel)
 
-barplot(PepLenFull_InTip,col=col2["InTip"],space=0,border=NA,axes=F,ylim = c(0,4000))
-barplot(PepLenFull_InGel,add=T,col=col2["InGel"],space=0,border =NA,axes=F)
+# barplot(PepLenFull_InTip,col=col2["InTip"],space=0,border=NA,axes=F,ylim = c(0,4000))
+# barplot(PepLenFull_InGel,add=T,col=col2["InGel"],space=0,border =NA,axes=F)
+
+plot(PepLenFull_InTip,col=col2["InTip"],axes=F,ylim = c(0,4000),type='l'
+     ,lwd=6)
+lines(PepLenFull_InGel,add=T,col=col2["InGel"],lwd=6)
 
 # hist(pepLen_InTip,col=col2["InTip"],border=NA,breaks = 100,space=0)
 # hist(pepLen_InGel,add=T,col=col2["InGel"],border=NA)
 # plot(as.numeric(names(table(pepLen_InTip))),table(pepLen_InTip),col=col2["InTip"],type='l',lwd=2.7,xlab="Peptide lengths",ylab="#",axes=F
      # ,ylim=c(0,4000))
 # lines(as.numeric(names(table(pepLen_InGel))),table(pepLen_InGel),col=col2["InGel"],type='l',lwd=2.7)
-# axis(side=1,at=seq(7-6,50-6,3),labels = seq(7,50,3))
+axis(side=1,at=seq(7-6,50-6,3),labels = seq(7,50,3))
 axis(side=2,at=seq(0,4000,1000),labels = seq(0,4000,1000),las=2)
 legend("topright",legend=c("InTip","InGel"),fill=col2)
 dev.off()
@@ -155,7 +159,7 @@ Pro_bar<-c(length(Pro_InGel)-length(InterPro),length(InterPro),length(Pro_InTip)
 pdf("1_InGelInTip_VennCircleCol.pdf",width = 4,height=4)
 par(mfrow=c(3,1),mar=c(1,1,4,1))
 grid::grid.newpage()
-VennDiagram::draw.pairwise.venn(area1 = sum(Pep_bar[1:2]),area2 = sum(Pep_bar[2:3]),cross.area = Pep_bar[2]
+VennDiagram::draw.pairwise.venn(area1 = sum(Pep_bar[1:2]),area2 = sum(Pep_bar[2:3]),cross.area = Pep_bar[2],circle_order=c(T,T,T)
                                 ,col =c(col2[2],col2[1]))
 grid::grid.newpage()
 VennDiagram::draw.pairwise.venn(area1 = sum(Pro_bar[1:2]),area2 = sum(Pro_bar[2:3]),cross.area = Pro_bar[2]
@@ -198,7 +202,7 @@ Pro_InTip_CV<-apply(Pro_InTip_Mat,1,sd,na.rm=T)/apply(Pro_InTip_Mat,1,mean,na.rm
 
 CVList<-list(Pep_InGel_CV,Pep_InTip_CV,Pro_InGel_CV,Pro_InTip_CV)
 names(CVList)<-c("Pep_InGel","Pep_InTip","Pro_InGel","Pro_InTip")
-pdf("1_InGelInTip_CV_col.pdf",width = 4,height = 4)
+# pdf("1_InGelInTip_CV_col.pdf",width = 4,height = 4)
 par(mar=c(6,4,1,1))
 vioplot::vioplot(CVList,col=0,ylim=c(0,1),ylab="CoV",las=2)
 boxplot(CVList,add=T,outline = F,col=col2[c("InGel","InTip")],las=2)
@@ -245,14 +249,14 @@ PepCorMat_InGel<-PepCorMat[1:6,1:6]
 ProCorMat_InGel<-ProCorMat[1:6,1:6]
 PepCorMat_InTip<-PepCorMat[7:12,7:12]
 ProCorMat_InTip<-ProCorMat[7:12,7:12]
-pdf("Corr_Plot_col.pdf",width=6,height = 6)
+pdf("Corr_Plot_col_0.pdf",width=6,height = 6)
 toPlotList<-list(unique(as.vector(PepCorMat_InGel))[-1],
                  unique(as.vector(PepCorMat_InTip))[-1],
                  unique(as.vector(ProCorMat_InGel))[-1],
                  unique(as.vector(ProCorMat_InTip))[-1])
 names(toPlotList)<-c("PepCor_InGel","PepCor_InTip",
                      "ProCor_InGel","ProCor_InTip")
-boxplot(toPlotList,las=2,col=col2[c("InGel","InTip")])
+boxplot(toPlotList,las=2,col=col2[c("InGel","InTip")],ylim=c(0,1))
 dev.off()
 
 # pdf("1_InGelInTip_Corr.pdf",width = 6,height = 6)
@@ -264,11 +268,33 @@ dev.off()
 # dev.off()
 
 #mean abundance rank
-pdf("1_InGelInTip_AbundRank_col.pdf",width = 4,height = 4)
+ProteinInAll<-read.csv("191protein.csv",stringsAsFactors = F,header = T,row.names = 2)
+ProteinIn<-ProteinInAll[,1]
+AllProteinIn<-unique(sapply(sapply(unique(unlist(strsplit(ProteinIn,";"))),strsplit,"-"),"[[",1))
+AllGeneIn<-c()
+for(i in 1:length(AllProteinIn)){
+  AllGeneIn[i]<-row.names(ProteinInAll)[which(grepl(AllProteinIn[i],ProteinInAll[,1]))]
+  names(AllGeneIn)[i]<-AllProteinIn[i]
+}
+ProteinInUniq<-ProteinIn[!grepl(";",ProteinIn)]
+
+pdf("1_InGelInTip_AbundRank_col_textGn.pdf",width = 8,height = 8)
 par(mar=c(4,4,1,1))
-plot(sort(log10(apply(Pro_InTip_Mat,1,mean,na.rm=T)),decreasing = T),type='l',col=col2["InTip"],lwd=2
+plot(sort(log10(apply(Pro_InTip_Mat,1,mean,na.rm=T)),decreasing = T),type='l',col=col2["InTip"],lwd=2,xlim=c(0,4000)
      ,ylab="log10 mean protein intensities",xlab="Abundance rank",ylim=c(2,8))
+ProSort<-sort(log10(apply(Pro_InTip_Mat,1,mean,na.rm=T)),decreasing = T)
+ProSel<-which(sapply(sapply(names(ProSort),strsplit,"\\|"),"[[",2)%in%AllProteinIn)
+points(ProSel,ProSort[ProSel],col=col2[1],pch=19)
+text(ProSel+250,ProSort[ProSel],AllGeneIn[sapply(sapply(names(ProSort)[ProSel],strsplit,"\\|"),"[[",2)])
+text(length(ProSort),min(ProSort[ProSort!="-Inf"]),round(min(ProSort[ProSort!="-Inf"]),2))
+text(1,max(ProSort[ProSort!="-Inf"]),round(max(ProSort[ProSort!="-Inf"]),2))
 lines(sort(log10(apply(Pro_InGel_Mat,1,mean,na.rm=T)),decreasing = T),type='l',col=col2["InGel"],lwd=2)
+ProSort<-sort(log10(apply(Pro_InGel_Mat,1,mean,na.rm=T)),decreasing = T)
+ProSel<-which(sapply(sapply(names(ProSort),strsplit,"\\|"),"[[",2)%in%AllProteinIn)
+points(ProSel,ProSort[ProSel],col=col2[2],pch=19)
+text(ProSel-250,ProSort[ProSel],AllGeneIn[sapply(sapply(names(ProSort)[ProSel],strsplit,"\\|"),"[[",2)])
+text(length(ProSort),min(ProSort[ProSort!="-Inf"]),round(min(ProSort[ProSort!="-Inf"]),2))
+text(1,max(ProSort[ProSort!="-Inf"]),round(max(ProSort[ProSort!="-Inf"]),2))
 legend("topright",legend = c("InTip","InGel"),lwd=2,col = col2)
 dev.off()
 
@@ -370,17 +396,17 @@ DIA_Num$Diameter<-as.numeric(gsub("um","",gsub("mm","000um",DIA_Num$Diameter)))
 # stripchart(DIA_Num$DIA_proNum~DIA_Num$Diameter,ylab="proNum",vertical=T,method='jitter',pch=18
 #            ,las=2,ylim=c(0,6000))
 {
-pdf("2_Detection_range_errCol.pdf",width=9,height = 5)
+pdf("2_Detection_range_errCol_0.pdf",width=9,height = 5)
 par(mfrow=c(1,2))
-x000<-c(350,500,750,1000,1500,2000,3000)
-conc<-c(0.042,0.085,0.191,0.339,0.763,1.357,3.054)
+x000<-c(0.042,0.085,0.191,0.339,0.763,1.357,3.054)
+conc<-c(350,500,750,1000,1500,2000,3000)
 
 #peptide
 DIA_Num_InTip<-DIA_Num[DIA_Num$CondName=="InTip",]
 Mean<-aggregate(DIA_Num_InTip[,1], list(DIA_Num_InTip[,4]), FUN=mean)[,2]
 Sd<-aggregate(DIA_Num_InTip[,1], list(DIA_Num_InTip[,4]), FUN=sd)[,2]
-stripchart(DIA_Num_InTip[,1]~DIA_Num_InTip[,4],ylab="pepNum",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(0,50000),col=col2['InTip'],cex=0,at=x000,xlim=c(300,3000),axes=F)
+stripchart(DIA_Num_InTip[,1]~DIA_Num_InTip[,4],ylab="# peptides",vertical=T,method='jitter',pch=19
+           ,las=2,ylim=c(0,50000),col=col2['InTip'],cex=0,at=x000,xlim=c(0,3000),axes=F)
 segments(x0=x000-30,x1=x000+30,y0=Mean,y1=Mean,col=col2['InTip'])
 segments(x0=x000,x1=x000,y0=Mean-Sd,y1=Mean+Sd,col=col2['InTip'])
 segments(x0=x000-15,x1=x000+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InTip'])
@@ -421,32 +447,32 @@ segments(x0=x00-15,x1=x00+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InGel'])
 segments(x0=x00-15,x1=x00+15,y0=Mean+Sd,y1=Mean+Sd,col=col2['InGel'])
 # stripchart(DDA_Num_InGel[,1]~DDA_Num_InGel[,4],ylab="pepNum",vertical=T,method='jitter',pch=17
 #            ,las=2,ylim=c(0,50000),col=col2['InGel'],add=T,cex=1,at=x00)
-axis(side=3,at=x000,labels = x000,las=2)
-axis(side=1,at=x000,labels = conc,las=2)
+axis(side=3,at=c(0,x000),labels = c(0,x000),las=2)
+axis(side=1,at=c(0,x000),labels = c(0,conc),las=2)
 axis(side=2,at=seq(0,50000,10000),labels = seq(0,50000,10000),las=2)
 
 
-lss=loess(DDA_Num_InGel[,1]~DDA_Num_InGel[,4])
+lss=loess(c(0,DDA_Num_InGel[,1])~c(0,DDA_Num_InGel[,4]))
 x00<-x000[seq(4,7)]
-lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
+lines(c(0,seq(x00[1],x00[length(x00)],length.out=100)),c(0,predict(lss,seq(x00[1],x00[length(x00)],length.out=100)))
       ,col=col2['InGel'],lty=2)
-lss=loess(DIA_Num_InGel[,1]~DIA_Num_InGel[,4])
-lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
+lss=loess(c(0,DIA_Num_InGel[,1])~c(0,DIA_Num_InGel[,4]))
+lines(c(0,seq(x00[1],x00[length(x00)],length.out=100)),c(0,predict(lss,seq(x00[1],x00[length(x00)],length.out=100)))
       ,col=col2['InGel'])
 x00<-x000[seq(1,7)]
-lss=loess(DDA_Num_InTip[,1]~DDA_Num_InTip[,4])
-lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
+lss=loess(c(0,DDA_Num_InTip[,1])~c(0,DDA_Num_InTip[,4]))
+lines(c(0,seq(x00[1],x00[length(x00)],length.out=100)),c(0,predict(lss,seq(x00[1],x00[length(x00)],length.out=100)))
       ,col=col2['InTip'],lty=2)
-lss=loess(DIA_Num_InTip[,1]~DIA_Num_InTip[,4])
-lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
+lss=loess(c(0,DIA_Num_InTip[,1])~c(0,DIA_Num_InTip[,4]))
+lines(c(0,seq(x00[1],x00[length(x00)],length.out=100)),c(0,predict(lss,seq(x00[1],x00[length(x00)],length.out=100)))
       ,col=col2['InTip'])
 
 #protein
 DIA_Num_InTip<-DIA_Num[DIA_Num$CondName=="InTip",]
 Mean<-aggregate(DIA_Num_InTip[,2], list(DIA_Num_InTip[,4]), FUN=mean)[,2]
 Sd<-aggregate(DIA_Num_InTip[,2], list(DIA_Num_InTip[,4]), FUN=sd)[,2]
-stripchart(DIA_Num_InTip[,2]~DIA_Num_InTip[,4],ylab="proNum",vertical=T,method='jitter',pch=19
-           ,las=2,ylim=c(0,6000),col=col2['InTip'],cex=0,at=x000,xlim=c(300,3000),axes=F)
+stripchart(DIA_Num_InTip[,2]~DIA_Num_InTip[,4],ylab="# proteins",vertical=T,method='jitter',pch=19
+           ,las=2,ylim=c(0,6000),col=col2['InTip'],cex=0,at=x000,xlim=c(0,3000),axes=F)
 segments(x0=x000-30,x1=x000+30,y0=Mean,y1=Mean,col=col2['InTip'])
 segments(x0=x000,x1=x000,y0=Mean-Sd,y1=Mean+Sd,col=col2['InTip'])
 segments(x0=x000-15,x1=x000+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InTip'])
@@ -487,23 +513,23 @@ segments(x0=x00-15,x1=x00+15,y0=Mean-Sd,y1=Mean-Sd,col=col2['InGel'])
 segments(x0=x00-15,x1=x00+15,y0=Mean+Sd,y1=Mean+Sd,col=col2['InGel'])
 # stripchart(DDA_Num_InGel[,2]~DDA_Num_InGel[,4],ylab="proNum",vertical=T,method='jitter',pch=17
 #            ,las=2,ylim=c(0,50000),col=col2['InGel'],add=T,cex=1,at=x00)
-axis(side=3,at=x000,labels = x000,las=2)
-axis(side=1,at=x000,labels = conc,las=2)
+axis(side=3,at=c(0,x000),labels = c(0,x000),las=2)
+axis(side=1,at=c(0,x000),labels = c(0,conc),las=2)
 axis(side=2,at=seq(0,6000,1000),labels = seq(0,6000,1000),las=2)
 
-lss=loess(DDA_Num_InGel[,2]~DDA_Num_InGel[,4])
+lss=loess(c(0,DDA_Num_InGel[,2])~c(0,DDA_Num_InGel[,4]))
 x00<-x000[seq(4,7)]
-lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
+lines(c(0,seq(x00[1],x00[length(x00)],length.out=100)),c(0,predict(lss,seq(x00[1],x00[length(x00)],length.out=100)))
       ,col=col2['InGel'],lty=2)
-lss=loess(DIA_Num_InGel[,2]~DIA_Num_InGel[,4])
-lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
+lss=loess(c(0,DIA_Num_InGel[,2])~c(0,DIA_Num_InGel[,4]))
+lines(c(0,seq(x00[1],x00[length(x00)],length.out=100)),c(0,predict(lss,seq(x00[1],x00[length(x00)],length.out=100)))
       ,col=col2['InGel'])
 x00<-x000[seq(1,7)]
-lss=loess(DDA_Num_InTip[,2]~DDA_Num_InTip[,4])
-lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
+lss=loess(c(0,DDA_Num_InTip[,2])~c(0,DDA_Num_InTip[,4]))
+lines(c(0,seq(x00[1],x00[length(x00)],length.out=100)),c(0,predict(lss,seq(x00[1],x00[length(x00)],length.out=100)))
       ,col=col2['InTip'],lty=2)
-lss=loess(DIA_Num_InTip[,2]~DIA_Num_InTip[,4])
-lines(seq(x00[1],x00[length(x00)],length.out=100),predict(lss,seq(x00[1],x00[length(x00)],length.out=100))
+lss=loess(c(0,DIA_Num_InTip[,2])~c(0,DIA_Num_InTip[,4]))
+lines(c(0,seq(x00[1],x00[length(x00)],length.out=100)),c(0,predict(lss,seq(x00[1],x00[length(x00)],length.out=100)))
       ,col=col2['InTip'])
 dev.off()
 }
